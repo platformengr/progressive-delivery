@@ -1,0 +1,44 @@
+# team-checkout in dev. Three sources, one application:
+#   the chart from the application repo, at a release tag,
+#   the values for dev from the environment repo,
+#   the ExternalSecrets for dev from the environment repo.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: checkout-dev
+  namespace: argocd
+  labels:
+    team: checkout
+    env: dev
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io   # deleting the app deletes what it deployed
+spec:
+  project: checkout
+  sources:
+    - repoURL: https://github.com/YOUR_GITHUB_USER/checkout-app.git
+      path: chart
+      targetRevision: v2.0.0        # a release of the chart, owned by team-checkout
+      helm:
+        valueFiles:
+          - $config/helm/dev.yaml
+    - repoURL: git@github.com:YOUR_GITHUB_USER/checkout-config.git
+      targetRevision: main
+      ref: config
+    - repoURL: git@github.com:YOUR_GITHUB_USER/checkout-config.git
+      targetRevision: main
+      path: secrets/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: checkout-dev
+  # Module 07: the Gateway API plugin moves the weights during a release.
+  ignoreDifferences:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      jqPathExpressions:
+        - .spec.rules[].backendRefs[].weight
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - RespectIgnoreDifferences=true

@@ -1,0 +1,6 @@
+# Istio ingress gateway Helm values.
+service:
+  type: ClusterIP                    # kind has no load balancer; the cluster track can use LoadBalancer
+resources:
+  requests: { cpu: 10m, memory: 40Mi }
+  limits: { memory: 256Mi }

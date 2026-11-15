@@ -1,0 +1,22 @@
+# The platform team's project: Argo CD itself, add-ons, namespaces, projects.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+spec:
+  description: Platform team. Argo CD, add-ons, namespaces, projects.
+  sourceRepos:
+    - https://github.com/YOUR_GITHUB_USER/argocd-platform.git
+    - https://argoproj.github.io/argo-helm
+    - https://traefik.github.io/charts
+    - https://charts.external-secrets.io
+    - https://prometheus-community.github.io/helm-charts   # Progressive delivery, module 04
+    - https://istio-release.storage.googleapis.com/charts  # module 06
+    - https://github.com/kubernetes-sigs/gateway-api.git    # module 07
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: '*'
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'

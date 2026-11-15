@@ -1,0 +1,13 @@
+# Namespaces for platform tooling that need labels. The others are created
+# by their Application (CreateNamespace=true).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: loadgen
+  labels:
+    istio-injection: enabled       # module 06: its requests go through the mesh
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: release-log

@@ -1,0 +1,10 @@
+# istiod Helm values. Small requests so it fits on a laptop.
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+global:
+  proxy:
+    resources:                       # every sidecar
+      requests: { cpu: 10m, memory: 40Mi }
+      limits: { memory: 128Mi }
+meshConfig:
+  enablePrometheusMerge: true        # sidecar and app metrics on one scrape port

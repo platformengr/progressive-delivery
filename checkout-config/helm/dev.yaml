@@ -1,0 +1,29 @@
+# checkout in dev. Values for the chart in checkout-app.
+image:
+  tag: "6.7.1"                 # promote by changing this line
+message: checkout (dev)
+replicas: 2                    # module 07: two pods, the gateway splits the traffic
+database:
+  secretName: checkout-db      # created by secrets/dev/checkout-db.yaml
+migration:
+  enabled: true
+smokeTest:
+  enabled: true
+
+# Module 07: a canary through the Gateway API on Traefik, no mesh.
+# (Modules 03 and 04 ran dev as blue-green: see helm/stages/.)
+strategy: canary
+canary:
+  trafficRouting: gatewayapi
+  steps:
+    - setWeight: 20            # 20% of requests, even with two pods
+    - pause: { duration: 1m }
+    - setWeight: 50
+    - pause: { duration: 1m }
+  analysis:
+    templates: [success-rate]
+    startingStep: 1
+gatewayApi:
+  host: checkout-dev.localtest.me   # http://checkout-dev.localtest.me:8088
+notify:
+  releaseLog: true             # module 08

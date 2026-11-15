@@ -1,0 +1,22 @@
+# Prometheus Helm values: one small server that scrapes pods which ask for it
+# (annotation prometheus.io/scrape: "true"). Reached in the cluster at
+# http://prometheus-server.monitoring.svc.cluster.local
+alertmanager:
+  enabled: false
+kube-state-metrics:
+  enabled: false
+prometheus-node-exporter:
+  enabled: false
+prometheus-pushgateway:
+  enabled: false
+
+server:
+  global:
+    scrape_interval: 15s           # analysis asks every 30 s; it needs fresh points
+    evaluation_interval: 15s
+  retention: 2d                    # a laptop, not a history
+  persistentVolume:
+    enabled: false                 # lost on restart, which is fine here
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 512Mi }

@@ -1,0 +1,24 @@
+# Is the new version answering? The share of its requests that succeed (2xx),
+# from podinfo's own counter, for the new pods only (their pod-template hash).
+apiVersion: argoproj.io/v1alpha1
+kind: ClusterAnalysisTemplate
+metadata:
+  name: success-rate
+spec:
+  args:
+    - name: namespace
+    - name: app
+    - name: new-hash
+  metrics:
+    - name: success-rate
+      interval: 30s                # ask Prometheus every 30 s
+      count: 6                     # six answers: three minutes per run
+      failureLimit: 1              # two bad answers fail the run, and the release aborts
+      successCondition: result[0] >= 0.95
+      provider:
+        prometheus:
+          address: http://prometheus-server.monitoring.svc.cluster.local
+          query: |
+            sum(rate(http_requests_total{namespace="{{args.namespace}}", app_kubernetes_io_name="{{args.app}}", rollouts_pod_template_hash="{{args.new-hash}}", status=~"2.."}[1m]))
+            /
+            sum(rate(http_requests_total{namespace="{{args.namespace}}", app_kubernetes_io_name="{{args.app}}", rollouts_pod_template_hash="{{args.new-hash}}"}[1m]))

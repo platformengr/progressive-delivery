@@ -1,0 +1,32 @@
+# Istio, part 3 of 3: the ingress gateway, the mesh's front door. On kind it
+# stays a ClusterIP Service: reach it with a port-forward on port 8090.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: istio-gateway
+  namespace: argocd
+spec:
+  project: platform
+  sources:
+    - repoURL: https://istio-release.storage.googleapis.com/charts
+      chart: gateway
+      targetRevision: 1.30.8
+      helm:
+        releaseName: istio-ingress     # its pods get the label istio: ingress
+        valueFiles:
+          - $values/istio/gateway-values.yaml
+    - repoURL: https://github.com/YOUR_GITHUB_USER/argocd-platform.git
+      targetRevision: main
+      ref: values
+    - repoURL: https://github.com/YOUR_GITHUB_USER/argocd-platform.git
+      targetRevision: main
+      path: istio/config               # the Gateway and the mesh-wide mTLS rule
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: istio-ingress
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,16 @@
+{{- if eq .Values.strategy "blueGreen" }}
+# blueGreen: the new version waits behind this Service until it is promoted.
+# Argo Rollouts points its selector at the new pods; nobody edits it by hand.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "checkout.name" . }}-preview
+  labels: {{- include "checkout.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ include "checkout.name" . }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+{{- end }}

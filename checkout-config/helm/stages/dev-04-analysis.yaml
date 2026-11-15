@@ -1,0 +1,22 @@
+# checkout in dev after module 04: blue-green, judged before the switch.
+# (Stage kept for reference; helm/dev.yaml holds the current state.)
+image:
+  tag: "6.7.1"
+message: checkout (dev)
+replicas: 1
+database:
+  secretName: checkout-db
+migration:
+  enabled: true
+smokeTest:
+  enabled: true
+
+strategy: blueGreen
+blueGreen:
+  autoPromotionEnabled: true     # analysis decides now, not a person
+  scaleDownDelaySeconds: 30
+  prePromotionAnalysis:
+    templates: [success-rate]    # the platform's ClusterAnalysisTemplate
+ingress:
+  host: checkout-dev.localtest.me
+  previewHost: preview-checkout-dev.localtest.me

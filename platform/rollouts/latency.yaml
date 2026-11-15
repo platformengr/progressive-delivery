@@ -1,0 +1,22 @@
+# Is the new version fast enough? The 95th percentile of its request duration,
+# from podinfo's own histogram, for the new pods only.
+apiVersion: argoproj.io/v1alpha1
+kind: ClusterAnalysisTemplate
+metadata:
+  name: latency
+spec:
+  args:
+    - name: namespace
+    - name: app
+    - name: new-hash
+  metrics:
+    - name: p95-latency
+      interval: 30s
+      count: 6
+      failureLimit: 1
+      successCondition: result[0] <= 0.5      # seconds
+      provider:
+        prometheus:
+          address: http://prometheus-server.monitoring.svc.cluster.local
+          query: |
+            histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{namespace="{{args.namespace}}", app_kubernetes_io_name="{{args.app}}", rollouts_pod_template_hash="{{args.new-hash}}"}[1m])))

@@ -1,0 +1,10 @@
+# Module 06: mutual TLS between sidecars in checkout-prod is required, not
+# optional. A pod outside the mesh can no longer call checkout-prod directly.
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: require-mtls
+  namespace: checkout-prod
+spec:
+  mtls:
+    mode: STRICT

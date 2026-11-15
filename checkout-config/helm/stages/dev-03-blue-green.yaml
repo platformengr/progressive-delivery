@@ -1,0 +1,20 @@
+# checkout in dev after module 03: blue-green with a preview host.
+# (Stage kept for reference; helm/dev.yaml holds the current state.)
+image:
+  tag: "6.7.1"
+message: checkout (dev)
+replicas: 1
+database:
+  secretName: checkout-db
+migration:
+  enabled: true
+smokeTest:
+  enabled: true
+
+strategy: blueGreen
+blueGreen:
+  autoPromotionEnabled: false    # a person promotes
+  scaleDownDelaySeconds: 30
+ingress:
+  host: checkout-dev.localtest.me            # the live version
+  previewHost: preview-checkout-dev.localtest.me   # the next one, before promotion

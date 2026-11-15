@@ -1,0 +1,24 @@
+{{- if and (ne .Values.strategy "blueGreen") (eq .Values.canary.trafficRouting "gatewayapi") }}
+{{- $name := include "checkout.name" . }}
+# Gateway API: the same split without a mesh, on the platform's Gateway
+# (Traefik). The Gateway API plugin of Argo Rollouts changes the weights.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ $name }}
+  labels: {{- include "checkout.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - name: {{ .Values.gatewayApi.gateway }}
+      namespace: {{ .Values.gatewayApi.gatewayNamespace }}
+  hostnames:
+    - {{ required "gatewayApi.host is required with trafficRouting: gatewayapi" .Values.gatewayApi.host }}
+  rules:
+    - backendRefs:
+        - name: {{ $name }}
+          port: 80
+          weight: 100
+        - name: {{ $name }}-canary
+          port: 80
+          weight: 0
+{{- end }}

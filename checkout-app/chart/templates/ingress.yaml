@@ -1,0 +1,26 @@
+{{- $name := include "checkout.name" . }}
+{{- range $svc, $host := dict $name .Values.ingress.host (printf "%s-preview" $name) (ternary .Values.ingress.previewHost "" (eq .Values.strategy "blueGreen")) }}
+{{- if $host }}
+---
+# Traefik serves this host (kind: https://{{ $host }}:8443).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $svc }}
+  labels: {{- include "checkout.labels" $ | nindent 4 }}
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: {{ $host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $svc }}
+                port: { name: http }
+{{- end }}
+{{- end }}

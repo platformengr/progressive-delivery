@@ -1,0 +1,112 @@
+# A Rollout is a Deployment with a release strategy: the same pod template,
+# plus how a new version replaces the old one. Argo Rollouts runs it.
+{{- $name := include "checkout.name" . }}
+{{- $ctx := dict "name" $name "ns" .Release.Namespace }}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: {{ $name }}
+  labels: {{- include "checkout.labels" . | nindent 4 }}
+  {{- if .Values.notify.releaseLog }}
+  annotations:
+    # Tell the platform's release log about every finished or aborted release.
+    notifications.argoproj.io/subscribe.on-rollout-completed.release-log: ""
+    notifications.argoproj.io/subscribe.on-rollout-aborted.release-log: ""
+  {{- end }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicas }}   # with autoscaling on, the HPA owns this field
+  {{- end }}
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: {{ .Values.progressDeadlineSeconds }}
+  {{- if .Values.progressDeadlineAbort }}
+  progressDeadlineAbort: true        # past the deadline, go back to the stable version
+  {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+  strategy:
+    {{- if eq .Values.strategy "blueGreen" }}
+    blueGreen:
+      activeService: {{ $name }}                 # what users reach
+      previewService: {{ $name }}-preview        # the new version, before the switch
+      autoPromotionEnabled: {{ .Values.blueGreen.autoPromotionEnabled }}
+      scaleDownDelaySeconds: {{ .Values.blueGreen.scaleDownDelaySeconds }}
+      {{- with .Values.blueGreen.prePromotionAnalysis.templates }}
+      prePromotionAnalysis: {{- include "checkout.analysis" (merge (dict "templates" .) $ctx) | nindent 8 }}
+      {{- end }}
+    {{- else }}
+    canary:
+      {{- with .Values.canary.trafficRouting }}
+      stableService: {{ $name }}                 # the version users have now
+      canaryService: {{ $name }}-canary          # the version being released
+      trafficRouting:
+        {{- if eq . "istio" }}
+        {{- if $.Values.istio.headerRoute }}
+        managedRoutes:
+          - name: canary-header                  # added and removed by the controller
+        {{- end }}
+        istio:
+          virtualService:
+            name: {{ $name }}
+            routes: [primary]                    # the route in virtualservice.yaml it reweights
+        {{- else if eq . "gatewayapi" }}
+        plugins:
+          argoproj-labs/gatewayAPI:
+            httpRoute: {{ $name }}
+            namespace: {{ $.Release.Namespace }}
+        {{- end }}
+      {{- end }}
+      {{- with .Values.canary.analysis.templates }}
+      analysis:
+        startingStep: {{ $.Values.canary.analysis.startingStep | default 1 }}   # start once the canary has traffic
+        {{- include "checkout.analysis" (merge (dict "templates" .) $ctx) | nindent 8 }}
+      {{- end }}
+      steps: {{- toYaml .Values.canary.steps | nindent 8 }}
+    {{- end }}
+  template:
+    metadata:
+      labels: {{- include "checkout.labels" . | nindent 8 }}
+      annotations:
+        # Prometheus scrapes podinfo's own metrics on its HTTP port.
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9898"
+        prometheus.io/path: /metrics
+    spec:
+      containers:
+        - name: app
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          ports:
+            - name: http
+              containerPort: 9898
+          envFrom:
+            - configMapRef:
+                name: {{ $name }}-config
+          env:
+            # In the pod template, so changing a fault is a new version.
+            - name: PODINFO_RANDOM_ERROR
+              value: {{ .Values.faults.randomError | quote }}
+            - name: PODINFO_RANDOM_DELAY
+              value: {{ .Values.faults.randomDelay | quote }}
+            {{- if .Values.faults.randomDelay }}
+            - name: PODINFO_RANDOM_DELAY_UNIT
+              value: ms
+            - name: PODINFO_RANDOM_DELAY_MIN
+              value: {{ .Values.faults.delayMinMs | quote }}
+            - name: PODINFO_RANDOM_DELAY_MAX
+              value: {{ .Values.faults.delayMaxMs | quote }}
+            {{- end }}
+            {{- with .Values.database.secretName }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . }}
+                  key: password
+            {{- end }}
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            failureThreshold: 6       # a faulty release still gets judged, not just restarted
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            failureThreshold: 6
+          resources: {{- toYaml .Values.resources | nindent 12 }}

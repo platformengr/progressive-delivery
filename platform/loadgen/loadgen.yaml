@@ -1,0 +1,50 @@
+# Five requests a second to each target. Each line of TARGETS is
+# "<url> <host header>". Dev goes through Traefik (like a user would), prod
+# straight to the Service (from module 06 the mesh routes it).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loadgen-targets
+data:
+  TARGETS: |
+    http://traefik.traefik.svc.cluster.local/ checkout-dev.localtest.me
+    http://traefik.traefik.svc.cluster.local/ preview-checkout-dev.localtest.me
+    http://checkout.checkout-prod.svc.cluster.local/ checkout.checkout-prod.svc.cluster.local
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loadgen
+  labels:
+    app.kubernetes.io/name: loadgen
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: loadgen
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: loadgen
+      annotations:
+        # Restart when the targets change.
+        checksum/targets: "edit-me-when-targets-change-1"
+    spec:
+      containers:
+        - name: loadgen
+          image: curlimages/curl:8.11.1
+          envFrom:
+            - configMapRef:
+                name: loadgen-targets
+          command: ["sh", "-c"]
+          args:
+            - |
+              while true; do
+                echo "$TARGETS" | while read -r url host; do
+                  [ -n "$url" ] && curl -s -o /dev/null -m 2 -H "Host: $host" "$url" &
+                done
+                sleep 0.2
+              done
+          resources:
+            requests: { cpu: 20m, memory: 16Mi }
+            limits: { memory: 32Mi }

@@ -1,0 +1,28 @@
+# checkout in prod after module 05: a canary by pod count, judged by metrics.
+# (Stage kept for reference; helm/prod.yaml holds the current state.)
+image:
+  tag: "6.7.1"
+message: checkout (prod)
+replicas: 4                      # four pods: one canary pod is 25%
+resources:
+  requests: { cpu: 100m, memory: 96Mi }
+  limits: { memory: 192Mi }
+database:
+  secretName: checkout-db
+migration:
+  enabled: true
+smokeTest:
+  enabled: true
+
+strategy: canary
+canary:
+  steps:
+    - setWeight: 25              # one pod of four
+    - pause: { duration: 2m }    # analysis watches while it waits
+    - setWeight: 50
+    - pause: { duration: 2m }
+    - setWeight: 75
+    - pause: { duration: 1m }
+  analysis:
+    templates: [success-rate]
+    startingStep: 1              # from the first pause on

@@ -1,0 +1,19 @@
+# The platform's shared release checks: ClusterAnalysisTemplates every team
+# can use by name. Cluster-wide, so only the platform project may deploy them.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rollouts-templates
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/YOUR_GITHUB_USER/argocd-platform.git
+    targetRevision: main
+    path: rollouts
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

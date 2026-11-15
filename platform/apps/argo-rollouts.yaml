@@ -1,0 +1,35 @@
+# Argo Rollouts: the controller that runs Rollouts (and the analysis that
+# judges them). A platform add-on like Traefik: upstream chart, pinned, values
+# from this repo. Upgrading it is a pull request that changes targetRevision.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo-rollouts
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"   # before the product apps that use Rollouts
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: platform
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      chart: argo-rollouts
+      targetRevision: 2.43.12            # Argo Rollouts v1.10.2
+      helm:
+        releaseName: argo-rollouts
+        valueFiles:
+          - $values/argo-rollouts/values.yaml
+    - repoURL: https://github.com/YOUR_GITHUB_USER/argocd-platform.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argo-rollouts
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true             # the Rollout CRD is too big for client-side apply

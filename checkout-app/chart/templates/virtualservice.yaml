@@ -1,0 +1,33 @@
+{{- if and (ne .Values.strategy "blueGreen") (eq .Values.canary.trafficRouting "istio") }}
+{{- $name := include "checkout.name" . }}
+# Istio routes every request for checkout, from inside the mesh and through the
+# platform's gateway. Argo Rollouts changes the two weights during a release;
+# Git keeps 100/0, and the Application ignores the difference.
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: {{ $name }}
+  labels: {{- include "checkout.labels" . | nindent 4 }}
+spec:
+  hosts:
+    - {{ $name }}.{{ .Release.Namespace }}.svc.cluster.local   # callers inside the mesh
+    {{- with .Values.istio.host }}
+    - {{ . }}                                                   # callers through the gateway
+    {{- end }}
+  gateways:
+    - mesh
+    {{- if .Values.istio.host }}
+    - {{ .Values.istio.gateway }}
+    {{- end }}
+  http:
+    - name: primary
+      route:
+        - destination:
+            host: {{ $name }}
+            port: { number: 80 }
+          weight: 100
+        - destination:
+            host: {{ $name }}-canary
+            port: { number: 80 }
+          weight: 0
+{{- end }}

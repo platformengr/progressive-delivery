@@ -1,0 +1,91 @@
+# Defaults for every environment. Environment values (dev, prod) live in the
+# checkout-config repo and override these.
+nameOverride: ""            # the capstone reuses this chart as "catalog"
+
+image:
+  repository: ghcr.io/stefanprodan/podinfo
+  tag: ""                   # empty: use appVersion from Chart.yaml
+
+replicas: 1
+message: checkout
+progressDeadlineSeconds: 120   # report a failed rollout after 2 minutes
+
+resources:
+  requests: { cpu: 50m, memory: 64Mi }
+  limits: { memory: 128Mi }
+
+# Optional Kubernetes Secret with key "password" (an ExternalSecret creates it).
+database:
+  secretName: ""
+
+# Deployment ordering (Argo CD course, module 10)
+migration:
+  enabled: false            # PreSync hook: runs before anything is applied
+  fail: false               # make the migration fail on purpose
+smokeTest:
+  enabled: false            # PostSync hook: runs after everything is healthy
+  path: /healthz            # what the smoke test requests
+
+# The replica count is left to the autoscaler when enabled
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 4
+
+# ---- Progressive delivery ---------------------------------------------------
+# How a new version goes out. canary: a share of the pods (or of the traffic)
+# first. blueGreen: a full second copy behind a preview Service, then a switch.
+strategy: canary
+
+canary:
+  # Steps run in order. Without trafficRouting the weight is reached by pod
+  # count, so it is only as fine as your replicas allow.
+  steps:
+    - setWeight: 50
+    - pause: {}             # wait for a person: kubectl argo rollouts promote
+  # Background analysis while the steps run (module 05). Example:
+  #   analysis: { templates: [success-rate], startingStep: 1 }
+  analysis: {}
+  # "" splits by pod count; istio (module 06) or gatewayapi (module 07)
+  # split the traffic itself.
+  trafficRouting: ""
+
+blueGreen:
+  autoPromotionEnabled: false   # a person (or analysis) switches traffic
+  scaleDownDelaySeconds: 30     # keep the old version 30 s after the switch
+  # Analysis against the preview before the switch (module 04). Example:
+  #   prePromotionAnalysis: { templates: [success-rate] }
+  prePromotionAnalysis: {}
+
+
+
+# Hosts on Traefik (kind: *.localtest.me reaches your laptop).
+ingress:
+  host: ""                    # the live version
+  previewHost: ""             # blueGreen: the version waiting for promotion
+
+# Istio (module 06): the host the platform's gateway serves, and the route
+# testers reach the canary with.
+istio:
+  host: ""
+  gateway: istio-ingress/public
+  headerRoute: false          # add an x-canary: "true" route during the release
+
+# Gateway API (module 07): the platform's Gateway on Traefik.
+gatewayApi:
+  host: ""
+  gateway: traefik-gateway
+  gatewayNamespace: traefik
+
+# A bad release on demand, no code change: podinfo's own fault flags.
+faults:
+  randomError: false          # one request in three answers 500, 400 or 409
+  randomDelay: false          # every request waits a random time
+  delayMinMs: 0
+  delayMaxMs: 0
+
+# Rollouts notifications (module 08): the platform's release log.
+notify:
+  releaseLog: false
+
+progressDeadlineAbort: false  # module 08: abort a release stuck past the deadline

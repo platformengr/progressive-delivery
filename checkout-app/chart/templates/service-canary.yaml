@@ -1,0 +1,16 @@
+{{- if and (ne .Values.strategy "blueGreen") .Values.canary.trafficRouting }}
+# canary with traffic routing: the mesh or the gateway sends the canary's share
+# of requests here. Argo Rollouts points its selector at the canary pods.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "checkout.name" . }}-canary
+  labels: {{- include "checkout.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ include "checkout.name" . }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+{{- end }}

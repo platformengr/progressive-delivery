@@ -1,0 +1,20 @@
+# A load generator: steady requests to checkout in dev and prod, so every
+# release has traffic for the analysis to judge. Platform-owned test tooling.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loadgen
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/YOUR_GITHUB_USER/argocd-platform.git
+    targetRevision: main
+    path: loadgen
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: loadgen
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

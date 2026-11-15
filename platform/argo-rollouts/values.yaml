@@ -1,0 +1,41 @@
+# Argo Rollouts Helm values: the platform team's configuration of the controller.
+controller:
+  replicas: 1                      # one is enough on a laptop; two in production
+  # Module 07: traffic router plugins. The controller downloads the plugin
+  # when it starts; the version is pinned in the URL.
+  trafficRouterPlugins:
+    - name: argoproj-labs/gatewayAPI
+      location: https://github.com/argoproj-labs/rollouts-plugin-trafficrouter-gatewayapi/releases/download/v0.17.0/gatewayapi-plugin-linux-amd64
+
+# The read-only dashboard: kubectl -n argo-rollouts port-forward svc/argo-rollouts-dashboard 3100:3100
+dashboard:
+  enabled: true
+  readonly: true                   # watch here, change through Git
+
+# Module 08: notifications to the platform's release log. Product teams
+# subscribe a Rollout with an annotation; the platform owns where it goes.
+notifications:
+  notifiers:
+    service.webhook.release-log: |
+      url: http://release-log.release-log.svc.cluster.local
+      headers:
+        - name: Content-Type
+          value: application/json
+  templates:
+    template.rollout-completed: |
+      webhook:
+        release-log:
+          method: POST
+          body: |
+            {"event": "completed", "rollout": "{{.rollout.metadata.name}}", "namespace": "{{.rollout.metadata.namespace}}", "image": "{{(index .rollout.spec.template.spec.containers 0).image}}"}
+    template.rollout-aborted: |
+      webhook:
+        release-log:
+          method: POST
+          body: |
+            {"event": "aborted", "rollout": "{{.rollout.metadata.name}}", "namespace": "{{.rollout.metadata.namespace}}", "image": "{{(index .rollout.spec.template.spec.containers 0).image}}", "message": "{{.rollout.status.message}}"}
+  triggers:
+    trigger.on-rollout-completed: |
+      - send: [rollout-completed]
+    trigger.on-rollout-aborted: |
+      - send: [rollout-aborted]

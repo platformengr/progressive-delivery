@@ -1,0 +1,44 @@
+# checkout in prod.
+image:
+  tag: "6.7.1"
+message: checkout (prod)
+replicas: 4
+resources:
+  requests: { cpu: 100m, memory: 96Mi }
+  limits: { memory: 192Mi }
+database:
+  secretName: checkout-db
+migration:
+  enabled: true
+smokeTest:
+  enabled: true
+
+# Module 06: a canary through Istio. The mesh moves exact shares of the
+# requests; the pod count no longer decides the weight.
+strategy: canary
+canary:
+  trafficRouting: istio
+  steps:
+    - setCanaryScale: { replicas: 1 }       # one canary pod, no traffic yet
+    - setHeaderRoute:                        # testers reach it with a header
+        name: canary-header
+        match:
+          - headerName: x-canary
+            headerValue: { exact: "true" }
+    - pause: {}                              # a person tries it, then promotes
+    - setWeight: 5                           # 5% of real requests
+    - pause: { duration: 2m }
+    - setWeight: 25
+    - pause: { duration: 2m }
+    - setWeight: 50
+    - pause: { duration: 2m }
+    - setHeaderRoute: { name: canary-header }   # remove the test route
+  analysis:
+    templates: [success-rate, latency]       # module 09: latency added after the drill
+    startingStep: 4                          # once real users get the canary
+istio:
+  host: checkout.localtest.me                # http://checkout.localtest.me:8090 (port-forward)
+  headerRoute: true
+notify:
+  releaseLog: true                           # module 08
+progressDeadlineAbort: true                  # module 08
