@@ -1,6 +1,6 @@
 # checkout in prod.
 image:
-  tag: "6.7.1"
+  tag: "6.13.0"
 message: checkout (prod)
 replicas: 4
 resources:

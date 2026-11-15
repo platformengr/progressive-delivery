@@ -1,7 +1,7 @@
 # checkout in prod after module 05: a canary by pod count, judged by metrics.
 # (Stage kept for reference; helm/prod.yaml holds the current state.)
 image:
-  tag: "6.7.1"
+  tag: "6.11.0"
 message: checkout (prod)
 replicas: 4                      # four pods: one canary pod is 25%
 resources:

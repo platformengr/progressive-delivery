@@ -1,9 +1,9 @@
 # checkout in dev after module 03: blue-green with a preview host.
 # (Stage kept for reference; helm/dev.yaml holds the current state.)
 image:
-  tag: "6.7.1"
+  tag: "6.9.0"
 message: checkout (dev)
-replicas: 1
+replicas: 2
 database:
   secretName: checkout-db
 migration:

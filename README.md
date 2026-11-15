@@ -38,7 +38,7 @@ Every manifest says `YOUR_GITHUB_USER` where your GitHub user goes. The course r
 | Istio | 1.30.8 (charts `base`, `istiod`, `gateway`) | `platform/apps/istio-*.yaml` |
 | Gateway API CRDs | v1.5.1, standard channel | `platform/apps/gateway-api.yaml` |
 | Argo CD, Traefik, External Secrets | as in the Argo CD course | `platform/apps/` |
-| checkout image | podinfo 6.7.0 / 6.7.1 | `checkout-config/helm/*.yaml` |
+| checkout image | podinfo 6.12.0 (dev) / 6.13.0 (prod) | `checkout-config/helm/*.yaml` |
 
 Istio 1.30.8 is the newest release in Istio's Helm repository on 2026-11-15. To bump any of them, change `targetRevision` in a pull request and read the release notes first.
 
